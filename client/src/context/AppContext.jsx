@@ -4,7 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { useUser, useAuth } from "@clerk/clerk-react";
 import { toast } from "react-hot-toast";
 
-axios.defaults.baseURL = import.meta.env.VITE_BACKEND_URL;
+const backendUrl = import.meta.env.VITE_BACKEND_URL || "https://hotel-booking-backend-nine-hazel.vercel.app";
+axios.defaults.baseURL = backendUrl;
 
 const AppContext = createContext(null);
 
