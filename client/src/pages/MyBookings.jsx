@@ -1,10 +1,34 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import Title from '../components/Title'
-import { assets, userBookingsDummyData } from '../assets/assets'
+import { assets } from '../assets/assets'
+import roomImg1 from '../assets/roomImg1.png'
+import { useAppContext } from '../context/AppContext'
+import toast from 'react-hot-toast'
 
 const MyBooking = () => {
 
-  const [bookings, setBookings] = useState(userBookingsDummyData)
+
+  const { axios, getToken, user} = useAppContext()
+ const [bookings, setBookings] = useState([])
+
+ const fetchUserBooking = async ()=>{
+  try{
+    const { data} = await axios.get('/api/bookings/user', {headers: {Authorization: `Bearer ${await getToken()}` }})
+    if(data.success){
+      setBookings(data.bookings || [])
+    }else{
+      toast.error(data.message)
+    }
+
+  }catch (error){
+       toast.error(error.message)
+  }
+ }
+ useEffect(()=>{
+  if(user){
+    fetchUserBooking()
+  }
+ },[user, getToken])
 
   return (
     <div className='py-28 md:pb-35 md:pt-32 px-4 md:px-16 lg:px-24 xl:px-32'>
@@ -21,7 +45,7 @@ const MyBooking = () => {
         <div className='hidden md:grid md:grid-cols-[3fr_2fr_1fr] w-full border-b border-gray-300 font-medium text-base py-3'>
           <div>Hotels</div>
           <div>Date & Timing</div>
-          <div>Payment</div>
+          <div>Status</div>
         </div>
 
         {/* Bookings */}
@@ -36,7 +60,7 @@ const MyBooking = () => {
             <div className='flex flex-col md:flex-row'>
 
               <img
-                src={booking.room.images[0]}
+                  src={booking.room?.images?.[0] || roomImg1}
                 alt='hotel-img'
                 className='w-full md:w-44 h-32 rounded shadow object-cover'
               />
@@ -45,9 +69,9 @@ const MyBooking = () => {
 
                 {/* Hotel Name */}
                 <p className='font-playfair text-2xl'>
-                  {booking.hotel.name}
+                    {booking.hotel?.name || 'Hotel details unavailable'}
                   <span className='font-inter text-sm'>
-                    {' '}({booking.room.roomType})
+                      {booking.room?.roomType && ` (${booking.room.roomType})`}
                   </span>
                 </p>
 
@@ -57,7 +81,7 @@ const MyBooking = () => {
                     src={assets.locationIcon}
                     alt='location-icon'
                   />
-                  <span>{booking.hotel.address}</span>
+                    <span>{booking.hotel?.address || 'Address unavailable'}</span>
                 </div>
 
                 {/* Guests */}
@@ -104,10 +128,20 @@ const MyBooking = () => {
 
             </div>
 
-            {/* Payment Status */}
+            {/* Booking and Payment Status */}
             <div className='flex flex-col items-start justify-center pt-3'>
 
-              <div className='flex items-center gap-2'>
+              <p className={`text-sm font-medium capitalize ${
+                booking.status === 'cancelled'
+                  ? 'text-red-500'
+                  : booking.status === 'confirmed'
+                    ? 'text-green-500'
+                    : 'text-orange-500'
+              }`}>
+                Booking: {booking.status || 'pending'}
+              </p>
+
+              <div className='flex items-center gap-2 mt-2'>
 
                 {/* Status Dot */}
                 <div

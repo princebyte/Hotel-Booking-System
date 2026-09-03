@@ -1,8 +1,14 @@
 import React, { useState } from 'react'
+import { useAuth } from '@clerk/clerk-react'
 import Title from '../../components/Title'
 import { assets } from '../../assets/assets'
+import { useAppContext } from '../../context/AppContext'
+import toast from 'react-hot-toast'
 
 const AddRoom = () => {
+
+  const {axios, getToken} = useAppContext()
+  const { isSignedIn } = useAuth()
 
   const [images, setImages] = useState({
     1: null,
@@ -14,7 +20,7 @@ const AddRoom = () => {
   const [inputs, setInputs] = useState({
     roomType: '',
     pricePerNight: 0,
-    amenites: {
+    amenities: {
       'Free WiFi': false,
       'Free Breakfast': false,
       'Free Service': false,
@@ -23,8 +29,81 @@ const AddRoom = () => {
     }
   })
 
+const [loading, setLoading] = useState(false)
+
+  const onSubmitHandler = async (event) => {
+    event.preventDefault()
+
+    if (!inputs.roomType || !inputs.pricePerNight || !Object.values(images).some(image => image)) {
+      toast.error('Please fill in all the details')
+      return
+    }
+
+    const selectedAmenities = Object.keys(inputs.amenities).filter(key => inputs.amenities[key])
+
+    if (!selectedAmenities.length) {
+      toast.error('Please select at least one amenity')
+      return
+    }
+
+    if (!isSignedIn) {
+      toast.error('Please sign in first')
+      return
+    }
+
+    setLoading(true)
+
+    try {
+      const token = await getToken()
+
+      if (!token) {
+        toast.error('Please sign in first')
+        return
+      }
+
+      const formData = new FormData()
+      formData.append('roomType', inputs.roomType)
+      formData.append('pricePerNight', Number(inputs.pricePerNight))
+      formData.append('amenities', JSON.stringify(selectedAmenities))
+
+      Object.keys(images).forEach((key) => {
+        if (images[key]) {
+          formData.append('images', images[key])
+        }
+      })
+
+      const { data } = await axios.post('/api/rooms', formData, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      })
+
+      if (data.success) {
+        toast.success(data.message)
+        setInputs({
+          roomType: '',
+          pricePerNight: 0,
+          amenities: {
+            'Free WiFi': false,
+            'Free Breakfast': false,
+            'Free Service': false,
+            'Mountain View': false,
+            'Pool Access': false
+          }
+        })
+        setImages({ 1: null, 2: null, 3: null, 4: null })
+      } else {
+        toast.error(data.message)
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || error.message || 'Failed to add room')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
-    <form>
+    <form onSubmit = {onSubmitHandler}>
       <Title
         align='left'
         font='outfit'
@@ -80,7 +159,7 @@ const AddRoom = () => {
             className='border opacity-70 border-gray-300 mt-1 rounded p-2 w-full'
           >
             <option value=''>Select Room Type</option>
-            <option value='single Bed'>Single Bed</option>
+            <option value='Single Bed'>Single Bed</option>
             <option value='Double Bed'>Double Bed</option>
             <option value='Luxery Room'>Luxery Room</option>
             <option value='Family Suit'>Family Suit</option>
@@ -102,7 +181,7 @@ const AddRoom = () => {
             onChange={e =>
               setInputs({
                 ...inputs,
-                pricePerNight: e.target.value
+                pricePerNight: Number(e.target.value)
               })
             }
           />
@@ -115,19 +194,19 @@ const AddRoom = () => {
 
       <div className='flex flex-col flex-wrap mt-1 text-gray-400 max-w-sm'>
 
-        {Object.keys(inputs.amenites).map((amenity, index) => (
+        {Object.keys(inputs.amenities).map((amenity, index) => (
           <div key={index}>
 
             <input
               type='checkbox'
               id={`amenities${index + 1}`}
-              checked={inputs.amenites[amenity]}
+              checked={inputs.amenities[amenity]}
               onChange={() =>
                 setInputs({
                   ...inputs,
-                  amenites: {
-                    ...inputs.amenites,
-                    [amenity]: !inputs.amenites[amenity]}})}/>
+                  amenities: {
+                    ...inputs.amenities,
+                    [amenity]: !inputs.amenities[amenity]}})}/>
                     <label htmlFor= {`amenities${index + 1}`}> {amenity}</label>
                     </div>
                     
@@ -135,8 +214,8 @@ const AddRoom = () => {
 
 
       </div>
-      <button className = 'bg-primary text-white px-8 py-2 rounded mt-8 cursor-pointer'>
-        Add Room
+      <button className = 'bg-primary text-white px-8 py-2 rounded mt-8 cursor-pointer' disabled = {loading}>
+        {loading ? 'Adding...' : "Add Room"  }
       </button>
 
     </form>
